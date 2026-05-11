@@ -10,8 +10,10 @@ MODULE_DESCRIPTION("A basic character driver");
 
 static int major;
 static int my_open(struct inode *inode, struct file *file);
+static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *offset);
 static struct file_operations fops = {
         .open = my_open,
+	.read = my_read,
 };
 
 static int __init my_driver_init(void){
@@ -39,5 +41,32 @@ static int my_open(struct inode *inode, struct file *file){
 	return 0;
 }
 
+static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *offset){
+	const char msg[] = "Hello from kernel\n";
+	// sizeof includes the null terminator : '\0' for length
+	// cat does not expect the extra '\0', leads to undefined behavior
+	//int msg_len = sizeof(msg);
+	// replace sizeof with strlen
+	size_t msg_len = strlen(msg);
+
+
+	printk(KERN_INFO "Device being read\n");
+
+	if(*offset >= msg_len)
+		return 0;
+
+	//int bytes_to_copy = min(msg_len - *offset, len);
+	// kernel min is type strict, both args must be of same type
+	// otherwise, will get "signedness" error
+	size_t remaining = msg_len - *offset;
+	size_t bytes_to_copy = min(remaining, len);
+
+	if(copy_to_user(buf, msg + *offset, bytes_to_copy))
+		return -EFAULT;
+
+	*offset += bytes_to_copy;
+
+	return bytes_to_copy;
+}
 // !! node can be created manullay like this : mknod /dev/mychar c majornumber 0
 
