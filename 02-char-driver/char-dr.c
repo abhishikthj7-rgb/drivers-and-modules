@@ -11,9 +11,11 @@ MODULE_DESCRIPTION("A basic character driver");
 static int major;
 static int my_open(struct inode *inode, struct file *file);
 static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *offset);
+static ssize_t my_write(struct file *file, const char __user *buf, size_t len, loff_t *offset);
 static struct file_operations fops = {
         .open = my_open,
 	.read = my_read,
+	.write = my_write,
 };
 
 static int __init my_driver_init(void){
@@ -68,5 +70,26 @@ static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *
 
 	return bytes_to_copy;
 }
+
+static ssize_t my_write(struct file *file, const char __user *buf, size_t len, loff_t *offset){
+	char kbuf[64];
+
+	printk(KERN_INFO "Write opened\n");
+	// each write is called using a fresh buffer, adding offset not needed for "stateless" char driver
+	//size_t bytes_to_copy = min(sizeof(kbuf) - offset, len);
+	// !! -1 in below line for '\0'
+	size_t bytes_to_copy = min(sizeof(kbuf)-1 , len);
+	//if(copy_from_user(kbuf + *offset, buf, bytes_to_copy))
+	if(copy_from_user(kbuf, buf, bytes_to_copy))
+		return -EFAULT;
+	// for bad memory access/copy failure return -EFAULT
+
+	// !! %s expects null terinated string
+	kbuf[bytes_to_copy] = '\0';
+	printk(KERN_INFO "Bytes written : %s\n", kbuf);
+	return bytes_to_copy;
+}
+
+
 // !! node can be created manullay like this : mknod /dev/mychar c majornumber 0
 
