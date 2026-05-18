@@ -46,28 +46,36 @@ static int __init my_driver_init(void){
 	}
 
 	cdev_init(&my_cdev,&fops);
+
 	if(cdev_add(&my_cdev, dev, 3) <0)
 		return -1;
+
 	my_class = class_create("my_class");
 	if(IS_ERR(my_class))
 		return PTR_ERR(my_class);
-	if(IS_ERR(device_create(my_class, NULL, dev, NULL, "mychar%d", 0)))
-		return -1;
 
-	printk(KERN_INFO "Device registered successfully, major number = %d\n", major);
+	for(int i=0; i<3; i++)
+		if(IS_ERR(device_create(my_class, NULL, MKDEV(major, i), NULL, "mychar%d", i)))
+			return -1;
 
-	printk(KERN_INFO "Hello char!\n");
+	printk(KERN_INFO "Devices registered successfully, major number = %d\n", major);
+	printk(KERN_INFO "Module insertion success!\n");
 	return 0;
 }
 module_init(my_driver_init);
 
 static void __exit my_driver_exit(void){
 	//unregister_chrdev(major, "mychar_driver");
-	printk(KERN_INFO "Good Bye char !\n");
-	device_destroy(my_class, dev);
+
+	for(int i=0; i<3; i++)
+		device_destroy(my_class, MKDEV(major,i));
+
 	class_destroy(my_class);
 	cdev_del(&my_cdev);
 	unregister_chrdev_region(dev, 3);
+
+	printk(KERN_INFO "device_destroy success!\n");
+	printk(KERN_INFO "Module removal success!\n");
 }
 module_exit(my_driver_exit);
 
