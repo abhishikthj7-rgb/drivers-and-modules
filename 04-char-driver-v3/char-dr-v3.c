@@ -35,26 +35,26 @@ struct my_state{
 };
 
 static int __init my_driver_init(void){
-	if(alloc_chrdev_region(&dev, 0, 3, "mychar_driver") <0)
+	if (alloc_chrdev_region(&dev, 0, 3, "mychar_driver") < 0)
 		return -1;
 
 	major = MAJOR(dev);
-	if(major<0){
+	if (major < 0){
 		printk(KERN_ERR "Device allocation failed !!\n");
 		return major;
 	}
 
-	cdev_init(&my_cdev,&fops);
+	cdev_init(&my_cdev, &fops);
 
-	if(cdev_add(&my_cdev, dev, 3) <0)
+	if (cdev_add(&my_cdev, dev, 3) < 0)
 		return -1;
 
 	my_class = class_create("my_class");
-	if(IS_ERR(my_class))
+	if (IS_ERR(my_class))
 		return PTR_ERR(my_class);
 
-	for(int i=0; i<3; i++)
-		if(IS_ERR(device_create(my_class, NULL, MKDEV(major, i), NULL, "mychar%d", i)))
+	for (int i = 0; i < 3; i++)
+		if (IS_ERR(device_create(my_class, NULL, MKDEV(major, i), NULL, "mychar%d", i)))
 			return -1;
 
 	printk(KERN_INFO "Devices registered successfully, major number = %d\n", major);
@@ -64,8 +64,8 @@ static int __init my_driver_init(void){
 module_init(my_driver_init);
 
 static void __exit my_driver_exit(void){
-	for(int i=0; i<3; i++)
-		device_destroy(my_class, MKDEV(major,i));
+	for (int i = 0; i < 3; i++)
+		device_destroy(my_class, MKDEV(major, i));
 
 	class_destroy(my_class);
 	cdev_del(&my_cdev);
@@ -81,7 +81,7 @@ static int my_open(struct inode *inode, struct file *file){
 	struct my_state *state;
 
 	state = kmalloc(sizeof(*state), GFP_KERNEL);
-	if(!state)
+	if (!state)
 		return -ENOMEM;
 
 	state->curr = 0;
@@ -97,13 +97,13 @@ static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *
 
 	printk(KERN_INFO "Device being read\n");
 
-	if(*offset >= msg_len)
+	if (*offset >= msg_len)
 		return 0;
 
 	size_t remaining = msg_len - *offset;
 	size_t bytes_to_copy = min(remaining, len);
 
-	if(copy_to_user(buf, state->buf + *offset, bytes_to_copy))
+	if (copy_to_user(buf, state->buf + *offset, bytes_to_copy))
 		return -EFAULT;
 
 	*offset += bytes_to_copy;
@@ -115,11 +115,11 @@ static ssize_t my_write(struct file *file, const char __user *buf, size_t len, l
 	struct my_state *state = file->private_data;
 	printk(KERN_INFO "state ptr = %px\n", state);
 
-	if(state->curr >= MAX_NUMBER)
+	if (state->curr >= MAX_NUMBER)
 		return -ENOSPC;
-	size_t bytes_to_copy = min(sizeof(state->buf)-state->curr , len);
+	size_t bytes_to_copy = min(sizeof(state->buf) - state->curr, len);
 
-	if(copy_from_user(state->buf+state->curr, buf, bytes_to_copy))
+	if (copy_from_user(state->buf + state->curr, buf, bytes_to_copy))
 		return -EFAULT;
 	state->curr += bytes_to_copy;
 
