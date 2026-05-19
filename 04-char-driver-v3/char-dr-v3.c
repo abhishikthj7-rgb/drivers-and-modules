@@ -29,33 +29,39 @@ static struct file_operations fops = {
 static struct cdev my_cdev;
 static struct class *my_class;
 static dev_t dev;
-struct my_state{
+struct my_state {
        char buf[MAX_NUMBER];
        size_t curr;
 };
 
-static int __init my_driver_init(void){
-	if (alloc_chrdev_region(&dev, 0, 3, "mychar_driver") < 0)
-		return -1;
+static int __init my_driver_init(void) {
+	int ret;
+	struct device *device;
+
+	ret = alloc_chrdev_region(&dev, 0, 3, "mychar_driver");
+	if (ret)
+		return ret;
 
 	major = MAJOR(dev);
-	if (major < 0){
-		printk(KERN_ERR "Device allocation failed !!\n");
-		return major;
-	}
 
 	cdev_init(&my_cdev, &fops);
 
-	if (cdev_add(&my_cdev, dev, 3) < 0)
-		return -1;
+	ret = cdev_add(&my_cdev, dev, 3);
+	if (ret)
+		return ret;
 
 	my_class = class_create("my_class");
 	if (IS_ERR(my_class))
 		return PTR_ERR(my_class);
 
-	for (int i = 0; i < 3; i++)
-		if (IS_ERR(device_create(my_class, NULL, MKDEV(major, i), NULL, "mychar%d", i)))
-			return -1;
+	int i;
+	for (i = 0; i < 3; i++) {
+		device = device_create(my_class, NULL, MKDEV(major, i), NULL, "mychar%d", i);
+		if (IS_ERR(device)) {
+			ret = PTR_ERR(device);
+			return ret;
+		}
+	}
 
 	printk(KERN_INFO "Devices registered successfully, major number = %d\n", major);
 	printk(KERN_INFO "Module insertion success!\n");
@@ -63,8 +69,9 @@ static int __init my_driver_init(void){
 }
 module_init(my_driver_init);
 
-static void __exit my_driver_exit(void){
-	for (int i = 0; i < 3; i++)
+static void __exit my_driver_exit(void) {
+	int i;
+	for (i = 0; i < 3; i++)
 		device_destroy(my_class, MKDEV(major, i));
 
 	class_destroy(my_class);
@@ -76,7 +83,7 @@ static void __exit my_driver_exit(void){
 }
 module_exit(my_driver_exit);
 
-static int my_open(struct inode *inode, struct file *file){
+static int my_open(struct inode *inode, struct file *file) {
 	printk(KERN_INFO "Device opened\n");
 	struct my_state *state;
 
@@ -90,7 +97,7 @@ static int my_open(struct inode *inode, struct file *file){
 	return 0;
 }
 
-static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *offset){
+static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *offset) {
 	struct my_state *state = file->private_data;
 	size_t msg_len = state->curr;
 	printk(KERN_INFO "state ptr = %px\n", state);
