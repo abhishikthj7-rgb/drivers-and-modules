@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -63,8 +65,7 @@ static int __init my_driver_init(void) {
 		}
 	}
 
-	printk(KERN_INFO "Devices registered successfully, major number = %d\n", major);
-	printk(KERN_INFO "Module insertion success!\n");
+	pr_info("Device registration success, major number = %d\n", major);
 	return 0;
 
 
@@ -88,13 +89,12 @@ static void __exit my_driver_exit(void) {
 	cdev_del(&my_cdev);
 	unregister_chrdev_region(dev, 3);
 
-	printk(KERN_INFO "device_destroy success!\n");
-	printk(KERN_INFO "Module removal success!\n");
+	pr_info("module unloaded\n");
 }
 module_exit(my_driver_exit);
 
 static int my_open(struct inode *inode, struct file *file) {
-	printk(KERN_INFO "Device opened\n");
+	pr_debug("Device opened\n");
 	struct my_state *state;
 
 	state = kmalloc(sizeof(*state), GFP_KERNEL);
@@ -110,9 +110,7 @@ static int my_open(struct inode *inode, struct file *file) {
 static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *offset) {
 	struct my_state *state = file->private_data;
 	size_t msg_len = state->curr;
-	printk(KERN_INFO "state ptr = %px\n", state);
-
-	printk(KERN_INFO "Device being read\n");
+	pr_info(" %s, state ptr = %px\n", __func__, state);
 
 	if (*offset >= msg_len)
 		return 0;
@@ -130,7 +128,7 @@ static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *
 
 static ssize_t my_write(struct file *file, const char __user *buf, size_t len, loff_t *offset){
 	struct my_state *state = file->private_data;
-	printk(KERN_INFO "state ptr = %px\n", state);
+	pr_info(" %s, state ptr = %px\n", __func__, state);
 
 	if (state->curr >= MAX_NUMBER)
 		return -ENOSPC;
@@ -141,7 +139,7 @@ static ssize_t my_write(struct file *file, const char __user *buf, size_t len, l
 	state->curr += bytes_to_copy;
 
 	/* Print buffer using length, avoids need for null termination */
-	printk(KERN_INFO "Bytes written: %.*s\n", (int)state->curr, state->buf);
+	pr_info("Bytes written: %.*s\n", (int)state->curr, state->buf);
 	return bytes_to_copy;
 }
 
