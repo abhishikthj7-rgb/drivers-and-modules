@@ -59,13 +59,23 @@ static int __init my_driver_init(void) {
 		device = device_create(my_class, NULL, MKDEV(major, i), NULL, "mychar%d", i);
 		if (IS_ERR(device)) {
 			ret = PTR_ERR(device);
-			return ret;
+			goto err_device_create;
 		}
 	}
 
 	printk(KERN_INFO "Devices registered successfully, major number = %d\n", major);
 	printk(KERN_INFO "Module insertion success!\n");
 	return 0;
+
+
+err_device_create:
+	while (--i >= 0)
+		device_destroy(my_class, MKDEV(major, i));
+	class_destroy(my_class);
+	cdev_del(&my_cdev);
+	unregister_chrdev_region(dev, 3);
+
+	return ret;
 }
 module_init(my_driver_init);
 
