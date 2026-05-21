@@ -45,16 +45,17 @@ static int __init my_driver_init(void) {
 		return ret;
 
 	major = MAJOR(dev);
-
 	cdev_init(&my_cdev, &fops);
 
 	ret = cdev_add(&my_cdev, dev, 3);
 	if (ret)
-		return ret;
+		goto err_cdev_add;
 
 	my_class = class_create("my_class");
-	if (IS_ERR(my_class))
-		return PTR_ERR(my_class);
+	if (IS_ERR(my_class)){
+		ret = PTR_ERR(my_class);
+		goto err_class_create;
+	}
 
 	int i;
 	for (i = 0; i < 3; i++) {
@@ -68,11 +69,14 @@ static int __init my_driver_init(void) {
 	pr_info("Device registration success, major number = %d\n", major);
 	return 0;
 
-
 err_device_create:
 	while (--i >= 0)
 		device_destroy(my_class, MKDEV(major, i));
-	class_destroy(my_class);
+	class_destroy(my_class); //Device creation fails only after class creation succeeds, class_destroy needed here
+
+err_class_create:
+	//class_destroy(my_class); will lead to crash/undefined behavior, cant destroy what is not created
+err_cdev_add:
 	cdev_del(&my_cdev);
 	unregister_chrdev_region(dev, 3);
 
