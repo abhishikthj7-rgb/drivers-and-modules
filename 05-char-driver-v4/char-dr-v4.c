@@ -115,6 +115,7 @@ static int my_open(struct inode *inode, struct file *file) {
 
 static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *offset) {
 	struct my_state *state = file->private_data;
+	char tmp[MAX_NUMBER];
 
 	mutex_lock(&state->lock);
 
@@ -128,15 +129,15 @@ static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *
 
 	size_t remaining = msg_len - *offset;
 	size_t bytes_to_copy = min(remaining, len);
+	bytes_to_copy = min(bytes_to_copy, (size_t)MAX_NUMBER);
 
-	if (copy_to_user(buf, state->buf + *offset, bytes_to_copy)) {
-		mutex_unlock(&state->lock);
-		return -EFAULT;
-	}
-
-	*offset += bytes_to_copy;
+	memcpy(tmp, state->buf + *offset, bytes_to_copy);
 
 	mutex_unlock(&state->lock);
+
+	if (copy_to_user(buf, tmp, bytes_to_copy))
+		return -EFAULT;
+	*offset += bytes_to_copy;
 
 	return bytes_to_copy;
 }

@@ -1,7 +1,7 @@
 KDIR := ~/Downloads/linux
 PWD  := $(shell pwd)
 
-obj-m += char-dr-v3.o
+obj-m += char-dr-v4.o
 
 all:
 	make -C $(KDIR) M=$(PWD) modules
