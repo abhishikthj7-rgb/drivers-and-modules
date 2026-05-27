@@ -144,6 +144,11 @@ static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *
 
 static ssize_t my_write(struct file *file, const char __user *buf, size_t len, loff_t *offset){
 	struct my_state *state = file->private_data;
+	char tmp[MAX_NUMBER];
+
+	size_t bytes_to_copy = min(sizeof(state->buf) - state->curr, len);
+	if (copy_from_user(tmp, buf, bytes_to_copy))
+		return -EFAULT;
 
 	mutex_lock(&state->lock);
 
@@ -154,12 +159,8 @@ static ssize_t my_write(struct file *file, const char __user *buf, size_t len, l
 		return -ENOSPC;
 	}
 
-	size_t bytes_to_copy = min(sizeof(state->buf) - state->curr, len);
-
-	if (copy_from_user(state->buf + state->curr, buf, bytes_to_copy)) {
-		mutex_unlock(&state->lock);
-		return -EFAULT;
-	}
+	bytes_to_copy = min(bytes_to_copy, sizeof(state->buf) - state->curr);
+	memcpy(state->buf + state->curr, tmp, bytes_to_copy);
 
 	state->curr += bytes_to_copy;
 
