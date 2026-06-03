@@ -17,14 +17,16 @@ static int major;
 static int my_open(struct inode *inode, struct file *file);
 static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *offset);
 static ssize_t my_write(struct file *file, const char __user *buf, size_t len, loff_t *offset);
-
 static int my_release(struct inode *inode, struct file *file);
+static loff_t my_llseek(struct file *file, loff_t off, int whence);
+
 static struct file_operations fops = {
 	.owner = THIS_MODULE,
         .open = my_open,
         .read = my_read,
         .write = my_write,
 	.release = my_release,
+	.llseek = my_llseek,
 };
 
 #define MAX_NUMBER 100
@@ -176,4 +178,33 @@ static int my_release(struct inode *inode, struct file *file){
 	struct my_state *state = file->private_data;
 	kfree(state);
 	return 0;
+}
+
+static loff_t my_llseek(struct file *file, loff_t off, int whence)
+{
+	struct my_state *state = file->private_data;
+	loff_t new_pos;
+
+	switch(whence){
+		case(SEEK_SET):
+			new_pos = off;
+			break;
+
+		case(SEEK_CUR):
+			new_pos = file->f_pos + off;
+			break;
+
+		case(SEEK_END):
+			new_pos = state->curr + off;
+			break;
+
+		default:
+			return -EINVAL;
+	}
+
+	if(new_pos < 0 || new_pos > state->curr)
+		return -EINVAL;
+
+	file->f_pos = new_pos;
+	return new_pos;
 }
