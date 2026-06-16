@@ -37,6 +37,7 @@ struct my_state {
 	char buf[MAX_NUMBER];
 	size_t curr;
 	struct mutex lock;
+	wait_queue_head_t read_queue;
 };
 
 static int __init my_driver_init(void) {
@@ -111,6 +112,7 @@ static int my_open(struct inode *inode, struct file *file) {
 	state->curr = 0;
 	mutex_init(&state->lock);
 	file->private_data = state;
+	init_waitqueue_head(&state->read_queue);
 
 	return 0;
 }
@@ -124,9 +126,13 @@ static ssize_t my_read(struct file *file, char __user *buf, size_t len, loff_t *
 	size_t msg_len = state->curr;
 	pr_info(" %s, state ptr = %px\n", __func__, state);
 
-	if (*offset >= msg_len) {
+	while (*offset >= msg_len) {
 		mutex_unlock(&state->lock);
-		return 0;
+
+		if (wait_event_interruptible(state->read_queue, *offset < state->curr))
+			return -ERESTARTSYS;
+
+		mutex_lock(&state->lock);
 	}
 
 	size_t remaining = msg_len - *offset;
@@ -170,6 +176,8 @@ static ssize_t my_write(struct file *file, const char __user *buf, size_t len, l
 	pr_info("Bytes written: %.*s\n", (int)state->curr, state->buf);
 
 	mutex_unlock(&state->lock);
+
+	wake_up_interruptible(&state->read_queue);
 
 	return bytes_to_copy;
 }
