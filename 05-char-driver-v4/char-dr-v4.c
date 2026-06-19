@@ -193,6 +193,8 @@ static loff_t my_llseek(struct file *file, loff_t off, int whence)
 	struct my_state *state = file->private_data;
 	loff_t new_pos;
 
+	mutex_lock(&state->lock);
+
 	switch(whence){
 		case(SEEK_SET):
 			new_pos = off;
@@ -214,5 +216,7 @@ static loff_t my_llseek(struct file *file, loff_t off, int whence)
 		return -EINVAL;
 
 	file->f_pos = new_pos;
+
+	mutex_unlock(&state->lock);
 	return new_pos;
 }
